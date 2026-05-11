@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Duplicate Checker (First Column)</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: #1e1e2e;
+    color: #cdd6f4;
+  }
+  h1 { margin: 0 0 8px; font-size: 22px; }
+  p.sub { margin: 0 0 16px; color: #a6adc8; font-size: 13px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .col { flex: 1 1 0; min-width: 320px; display: flex; flex-direction: column; }
+  label { font-weight: 600; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+  .count { font-weight: 400; color: #a6adc8; font-size: 12px; }
+  textarea {
+    width: 100%;
+    min-height: 280px;
+    background: #181825;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    padding: 10px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px;
+    resize: vertical;
+    white-space: pre;
+  }
+  .controls { margin: 14px 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button {
+    background: #89b4fa;
+    color: #11111b;
+    border: 0;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  button.secondary { background: #45475a; color: #cdd6f4; }
+  button:hover { filter: brightness(1.1); }
+  .stats { margin-left: auto; font-size: 13px; color: #a6adc8; }
+  .stats b { color: #f9e2af; }
+  .sep {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #181825; border: 1px solid #45475a; border-radius: 6px; padding: 4px 8px;
+  }
+  select, input[type=text] {
+    background: #181825; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 4px 6px;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px;
+  }
+  .group-block { margin-top: 4px; padding: 4px 0; border-bottom: 1px dashed #45475a; }
+</style>
+</head>
+<body>
+
+<h1>Duplicate Checker — by First Column</h1>
+<p class="sub">Paste your rows below. The tool groups rows by the value of the first column and splits them into <b>Unique</b> (appears once) and <b>Duplicates</b> (appears more than once). Full rows are preserved.</p>
+
+<div>
+  <label for="input">Input <span class="count" id="inputCount">0 rows</span></label>
+  <textarea id="input" placeholder="Paste tab-separated rows here..."></textarea>
+</div>
+
+<div class="controls">
+  <span class="sep">
+    Separator:
+    <select id="sep">
+      <option value="tab" selected>Tab</option>
+      <option value="comma">Comma (,)</option>
+      <option value="semicolon">Semicolon (;)</option>
+      <option value="pipe">Pipe (|)</option>
+      <option value="whitespace">Any whitespace</option>
+      <option value="custom">Custom...</option>
+    </select>
+    <input type="text" id="sepCustom" maxlength="5" size="3" style="display:none" placeholder="sep" />
+  </span>
+  <button id="check">Check Duplicates</button>
+  <button class="secondary" id="clear">Clear</button>
+  <button class="secondary" id="sample">Load Sample</button>
+  <div class="stats" id="stats"></div>
+</div>
+
+<div class="row">
+  <div class="col">
+    <label>Unique (first column appears exactly once) <span class="count" id="uniqCount">0 rows</span>
+      <button class="secondary" data-copy="unique" style="padding:3px 8px;font-size:11px">Copy</button>
+    </label>
+    <textarea id="unique" readonly></textarea>
+  </div>
+  <div class="col">
+    <label>Duplicates (first column repeats — all occurrences shown, grouped) <span class="count" id="dupCount">0 rows</span>
+      <button class="secondary" data-copy="duplicates" style="padding:3px 8px;font-size:11px">Copy</button>
+    </label>
+    <textarea id="duplicates" readonly></textarea>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function getSep() {
+  const v = $('sep').value;
+  if (v === 'tab') return '\t';
+  if (v === 'comma') return ',';
+  if (v === 'semicolon') return ';';
+  if (v === 'pipe') return '|';
+  if (v === 'whitespace') return /\s+/;
+  if (v === 'custom') return $('sepCustom').value || '\t';
+  return '\t';
+}
+
+$('sep').addEventListener('change', () => {
+  $('sepCustom').style.display = $('sep').value === 'custom' ? 'inline-block' : 'none';
+});
+
+function parseRows(text, sep) {
+  return text.split(/\r?\n/)
+    .map(l => l.replace(/\s+$/, ''))
+    .filter(l => l.trim().length > 0)
+    .map(line => {
+      const parts = typeof sep === 'string' ? line.split(sep) : line.split(sep);
+      const key = (parts[0] || '').trim().toLowerCase();
+      return { raw: line, key };
+    });
+}
+
+function check() {
+  const sep = getSep();
+  const rows = parseRows($('input').value, sep);
+
+  const groups = new Map();
+  for (const r of rows) {
+    if (!groups.has(r.key)) groups.set(r.key, []);
+    groups.get(r.key).push(r.raw);
+  }
+
+  const uniques = [];
+  const duplicates = [];
+  let dupKeys = 0;
+  for (const [key, arr] of groups) {
+    if (arr.length === 1) {
+      uniques.push(arr[0]);
+    } else {
+      dupKeys++;
+      for (const r of arr) duplicates.push(r);
+      duplicates.push(''); // blank line between dup groups
+    }
+  }
+  // remove trailing blank
+  while (duplicates.length && duplicates[duplicates.length - 1] === '') duplicates.pop();
+
+  $('unique').value = uniques.join('\n');
+  $('duplicates').value = duplicates.join('\n');
+
+  $('inputCount').textContent = rows.length + ' rows';
+  $('uniqCount').textContent = uniques.length + ' rows';
+  $('dupCount').textContent = duplicates.filter(l => l !== '').length + ' rows';
+
+  $('stats').innerHTML =
+    `Total: <b>${rows.length}</b> &nbsp; Unique keys: <b>${uniques.length}</b> &nbsp; Duplicated keys: <b>${dupKeys}</b> &nbsp; Duplicate rows: <b>${duplicates.filter(l => l !== '').length}</b>`;
+}
+
+$('check').addEventListener('click', check);
+$('clear').addEventListener('click', () => {
+  $('input').value = ''; $('unique').value = ''; $('duplicates').value = '';
+  $('stats').textContent = ''; $('inputCount').textContent = '0 rows';
+  $('uniqCount').textContent = '0 rows'; $('dupCount').textContent = '0 rows';
+});
+
+$('input').addEventListener('input', () => {
+  const n = $('input').value.split(/\r?\n/).filter(l => l.trim()).length;
+  $('inputCount').textContent = n + ' rows';
+});
+
+document.querySelectorAll('button[data-copy]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const el = $(btn.dataset.copy);
+    el.select();
+    document.execCommand('copy');
+    const old = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = old, 1000);
+  });
+});
+
+const SAMPLE = `aishatualiyu777@gmail.com\taishatualiyu!!22\td3ZOaMwLzn13@abyssmail.com\temvjgbqakmxxcozn\tsxymlujmjixloqybmou574jfg4yokrsd
+umargumbi311@gmail.com\tumargumbi311!!22\tghyAA09po959@abyssmail.com\tdlkpszqusckjrqoh\tkeinfrtneazxmhosp6hop4adx32nezp7
+aishatualiyu777@gmail.com\tDIFFERENT_PASSWORD\tother@abyssmail.com\tdifferent_app_pwd\tdifferent_token
+rabiatuauwalbkd@gmail.com\trabiatuauwal!!22\tC7zlETQ0HkuQ@abyssmail.com\tayqawjywhdrkuxzx\te6jxbdflraqjn46iod24bpxelf4etysm`;
+$('sample').addEventListener('click', () => { $('input').value = SAMPLE; check(); });
+</script>
+
+</body>
+</html>
