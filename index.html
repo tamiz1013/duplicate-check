@@ -88,13 +88,13 @@
 
 <div class="row">
   <div class="col">
-    <label>Unique (single occurrences + later duplicates) <span class="count" id="uniqCount">0 rows</span>
+    <label>Unique (single occurrences + last of each duplicate) <span class="count" id="uniqCount">0 rows</span>
       <button class="secondary" data-copy="unique" style="padding:3px 8px;font-size:11px">Copy</button>
     </label>
     <textarea id="unique" readonly></textarea>
   </div>
   <div class="col">
-    <label>Duplicates (first occurrence of each repeated key) <span class="count" id="dupCount">0 rows</span>
+    <label>Duplicates (all earlier occurrences of repeated keys) <span class="count" id="dupCount">0 rows</span>
       <button class="secondary" data-copy="duplicates" style="padding:3px 8px;font-size:11px">Copy</button>
     </label>
     <textarea id="duplicates" readonly></textarea>
@@ -148,8 +148,8 @@ function check() {
       uniques.push(arr[0]);
     } else {
       dupKeys++;
-      duplicates.push(arr[0]); // first occurrence goes to duplicates
-      for (let i = 1; i < arr.length; i++) uniques.push(arr[i]); // rest go to unique
+      uniques.push(arr[arr.length - 1]); // only the last occurrence goes to unique
+      for (let i = 0; i < arr.length - 1; i++) duplicates.push(arr[i]); // all earlier occurrences go to duplicates
     }
   }
 
