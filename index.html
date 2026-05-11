@@ -88,13 +88,13 @@
 
 <div class="row">
   <div class="col">
-    <label>Unique (first column appears exactly once) <span class="count" id="uniqCount">0 rows</span>
+    <label>Unique (single occurrences + later duplicates) <span class="count" id="uniqCount">0 rows</span>
       <button class="secondary" data-copy="unique" style="padding:3px 8px;font-size:11px">Copy</button>
     </label>
     <textarea id="unique" readonly></textarea>
   </div>
   <div class="col">
-    <label>Duplicates (first column repeats — all occurrences shown, grouped) <span class="count" id="dupCount">0 rows</span>
+    <label>Duplicates (first occurrence of each repeated key) <span class="count" id="dupCount">0 rows</span>
       <button class="secondary" data-copy="duplicates" style="padding:3px 8px;font-size:11px">Copy</button>
     </label>
     <textarea id="duplicates" readonly></textarea>
@@ -148,22 +148,20 @@ function check() {
       uniques.push(arr[0]);
     } else {
       dupKeys++;
-      for (const r of arr) duplicates.push(r);
-      duplicates.push(''); // blank line between dup groups
+      duplicates.push(arr[0]); // first occurrence goes to duplicates
+      for (let i = 1; i < arr.length; i++) uniques.push(arr[i]); // rest go to unique
     }
   }
-  // remove trailing blank
-  while (duplicates.length && duplicates[duplicates.length - 1] === '') duplicates.pop();
 
   $('unique').value = uniques.join('\n');
   $('duplicates').value = duplicates.join('\n');
 
   $('inputCount').textContent = rows.length + ' rows';
   $('uniqCount').textContent = uniques.length + ' rows';
-  $('dupCount').textContent = duplicates.filter(l => l !== '').length + ' rows';
+  $('dupCount').textContent = duplicates.length + ' rows';
 
   $('stats').innerHTML =
-    `Total: <b>${rows.length}</b> &nbsp; Unique keys: <b>${uniques.length}</b> &nbsp; Duplicated keys: <b>${dupKeys}</b> &nbsp; Duplicate rows: <b>${duplicates.filter(l => l !== '').length}</b>`;
+    `Total: <b>${rows.length}</b> &nbsp; Unique keys: <b>${uniques.length}</b> &nbsp; Duplicated keys: <b>${dupKeys}</b> &nbsp; Duplicate rows: <b>${duplicates.length}</b>`;
 }
 
 $('check').addEventListener('click', check);
